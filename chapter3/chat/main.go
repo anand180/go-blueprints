@@ -2,7 +2,7 @@ package main
 
 import (
 	"flag"
-	"go-blueprints/chapter2/trace"
+	"go-blueprints/chapter3/trace"
 	"log"
 	"net/http"
 	"os"
@@ -15,6 +15,9 @@ import (
 	"github.com/stretchr/gomniauth/providers/google"
 	"github.com/stretchr/objx"
 )
+
+// set the active Avatar implementation
+var avatars Avatar = UseFileSystemAvatar
 
 type templateHandler struct {
 	once     sync.Once
@@ -57,6 +60,21 @@ func main() {
 	http.Handle("/login", &templateHandler{filename: "login.html"})
 	http.HandleFunc("/auth/", loginHander)
 	http.Handle("/room", r)
+	http.HandleFunc("/logout", func(w http.ResponseWriter, r *http.Request) {
+		http.SetCookie(w, &http.Cookie{
+			Name:   "auth",
+			Value:  "",
+			Path:   "/",
+			MaxAge: -1,
+		})
+		w.Header()["Location"] = []string{"/chat"}
+		w.WriteHeader(http.StatusTemporaryRedirect)
+	})
+	http.Handle("/upload", &templateHandler{filename: "upload.html"})
+	http.HandleFunc("/uploader", uploadHandler)
+	http.Handle("/avatars/",
+		http.StripPrefix("/avatars",
+			http.FileServer(http.Dir("./avatars"))))
 
 	//start the room in the background
 	go r.run()
